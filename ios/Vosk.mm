@@ -5,6 +5,8 @@
 #import "Vosk-API.h"
 
 #import <AVFoundation/AVFoundation.h>
+#import <React/RCTEventEmitter.h>
+#import <React/RCTConvertHelpers.h>
 #import <React/RCTUtils.h>
 
 #include <algorithm>
@@ -559,25 +561,24 @@ RCT_EXPORT_MODULE();
   resolve(nil);
 }
 
-- (NSArray<NSString *> *)convertGrammar:(const std::optional<JS::NativeVosk::VoskOptions::Grammar> &)grammarOpt {
+- (NSArray<NSString *> *)convertGrammar:(
+    const std::optional<LazyVector<NSString *>> &)grammarOpt {
   if (!grammarOpt.has_value()) {
     return @[];
   }
-  NSArray<NSString *> *result = nil;
-  auto grammarVec = grammarOpt.value();
-  if (!grammarVec) {
+  const LazyVector<NSString *> &grammarVec = grammarOpt.value();
+  if (grammarVec.size() == 0) {
     return @[];
   }
   NSMutableArray<NSString *> *collector =
-      [NSMutableArray arrayWithCapacity:grammarVec->size()];
-  for (size_t i = 0; i < grammarVec->size(); ++i) {
-    NSString *entry = grammarVec->at(static_cast<int>(i));
+      [NSMutableArray arrayWithCapacity:static_cast<NSUInteger>(grammarVec.size())];
+  for (size_t i = 0; i < grammarVec.size(); ++i) {
+    NSString *entry = grammarVec.at(static_cast<int>(i));
     if (entry) {
       [collector addObject:entry];
     }
   }
-  result = collector;
-  return result;
+  return collector;
 }
 
 - (void)start:(JS::NativeVosk::VoskOptions const *_Nullable)options
