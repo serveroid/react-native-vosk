@@ -76,6 +76,26 @@ static std::string GrammarJSON(NSArray<NSString *> *grammar) {
   return stream.str();
 }
 
+static NSArray<NSString *> *ConvertGrammar(
+    const std::optional<LazyVector<NSString *>> &grammarOpt) {
+  if (!grammarOpt.has_value()) {
+    return @[];
+  }
+  const LazyVector<NSString *> &grammarVec = grammarOpt.value();
+  if (grammarVec.size() == 0) {
+    return @[];
+  }
+  NSMutableArray<NSString *> *collector =
+      [NSMutableArray arrayWithCapacity:static_cast<NSUInteger>(grammarVec.size())];
+  for (size_t i = 0; i < grammarVec.size(); ++i) {
+    NSString *entry = grammarVec.at(static_cast<int>(i));
+    if (entry) {
+      [collector addObject:entry];
+    }
+  }
+  return collector;
+}
+
 static NSString *ExtractJsonString(const char *json, const char *key) {
   if (json == nullptr || key == nullptr) {
     return nil;
@@ -252,7 +272,7 @@ RCT_EXPORT_MODULE();
     return;
   }
   dispatch_async(dispatch_get_main_queue(), ^{
-    [self sendEventWithName:type body:body];
+    [(RCTEventEmitter *)self sendEventWithName:type body:body];
   });
 }
 
@@ -561,26 +581,6 @@ RCT_EXPORT_MODULE();
   resolve(nil);
 }
 
-- (NSArray<NSString *> *)convertGrammar:(
-    const std::optional<LazyVector<NSString *>> &)grammarOpt {
-  if (!grammarOpt.has_value()) {
-    return @[];
-  }
-  const LazyVector<NSString *> &grammarVec = grammarOpt.value();
-  if (grammarVec.size() == 0) {
-    return @[];
-  }
-  NSMutableArray<NSString *> *collector =
-      [NSMutableArray arrayWithCapacity:static_cast<NSUInteger>(grammarVec.size())];
-  for (size_t i = 0; i < grammarVec.size(); ++i) {
-    NSString *entry = grammarVec.at(static_cast<int>(i));
-    if (entry) {
-      [collector addObject:entry];
-    }
-  }
-  return collector;
-}
-
 - (void)start:(JS::NativeVosk::VoskOptions const *_Nullable)options
       resolve:(RCTPromiseResolveBlock)resolve
        reject:(RCTPromiseRejectBlock)reject {
@@ -626,7 +626,7 @@ RCT_EXPORT_MODULE();
     double timeoutMs = -1;
     if (options) {
       if (options->grammar()) {
-        grammar = [self convertGrammar:options->grammar()];
+        grammar = ConvertGrammar(options->grammar());
       }
       if (options->timeout()) {
         timeoutMs = *(options->timeout());
