@@ -8,12 +8,10 @@ import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import java.io.IOException
-import org.json.JSONObject
 import org.vosk.Model
 import org.vosk.Recognizer
 import org.vosk.android.RecognitionListener
 import org.vosk.android.SpeechService
-import org.vosk.android.StorageService
 import com.vosk.NativeVoskSpec
 
 @ReactModule(name = VoskModule.NAME)
@@ -26,6 +24,7 @@ class VoskModule(reactContext: ReactApplicationContext) :
   private var recognizer: Recognizer? = null
   private var sampleRate = 16000.0f
   private var isStopping = false
+  private var currentModelPath: String? = null
 
   override fun getName(): String {
     return NAME
@@ -75,13 +74,67 @@ class VoskModule(reactContext: ReactApplicationContext) :
    * @return the recognized text or null if something went wrong
    */
   private fun parseHypothesis(hypothesis: String, key: String = "text"): String? {
-    // Hypothesis is in the form: '{[key]: "recognized text"}'
-    try {
-      val res = JSONObject(hypothesis)
-      return res.getString(key)
-    } catch (tx: Throwable) {
+    if (hypothesis.isEmpty()) {
       return null
     }
+    val needle = "\"$key\""
+    val keyIndex = hypothesis.indexOf(needle)
+    if (keyIndex == -1) {
+      return null
+    }
+    var index = keyIndex + needle.length
+    val length = hypothesis.length
+    while (index < length && hypothesis[index].isWhitespace()) {
+      index++
+    }
+    if (index >= length || hypothesis[index] != ':') {
+      return null
+    }
+    index++
+    while (index < length && hypothesis[index].isWhitespace()) {
+      index++
+    }
+    if (index >= length) {
+      return null
+    }
+    if (hypothesis[index] != '"') {
+      val end = hypothesis.indexOfAny(charArrayOf(',', '}'), index).let { if (it == -1) length else it }
+      return hypothesis.substring(index, end).trim().takeIf { it.isNotEmpty() }
+    }
+    index++
+    val builder = StringBuilder()
+    var i = index
+    while (i < length) {
+      when (val ch = hypothesis[i]) {
+        '"' -> return builder.toString().takeIf { it.isNotEmpty() }
+        '\\' -> {
+          if (i + 1 >= length) {
+            break
+          }
+          val next = hypothesis[i + 1]
+          when (next) {
+            '\\', '"', '/' -> builder.append(next)
+            'b' -> builder.append('\b')
+            'f' -> builder.append('\u000C')
+            'n' -> builder.append('\n')
+            'r' -> builder.append('\r')
+            't' -> builder.append('\t')
+            'u' -> {
+              if (i + 5 < length) {
+                val hex = hypothesis.substring(i + 2, i + 6)
+                hex.toIntOrNull(16)?.let { builder.append(it.toChar()) }
+                i += 4
+              }
+            }
+            else -> builder.append(next)
+          }
+          i++
+        }
+        else -> builder.append(ch)
+      }
+      i++
+    }
+    return null
   }
 
   /** Sends event to react native with associated data */
@@ -107,27 +160,57 @@ class VoskModule(reactContext: ReactApplicationContext) :
   }
 
   override fun loadModel(path: String, promise: Promise) {
-    cleanModel()
-    try {
-      this.model = Model(path)
-      promise.resolve("Model successfully loaded")
-    } catch (e: IOException) {
-      println("Model directory does not exist at path: " + path)
-
-      // Load model from main app bundle
-      StorageService.unpack(
-              context,
-              path,
-              "models",
-              { model: Model? ->
-                this.model = model
-                promise.resolve("Model successfully loaded")
-              }
-      ) { e: IOException ->
-        this.model = null
-        promise.reject(e)
-      }
+    val ctx = context
+    if (ctx == null) {
+      promise.reject(IOException("React context is no longer available"))
+      return
     }
+    val normalizedPath = if (path.startsWith("file://")) path.removePrefix("file://") else path
+    val previousPath = currentModelPath
+    if (normalizedPath == previousPath && model != null) {
+      promise.resolve(null)
+      return
+    }
+
+    val reusedModel = VoskModelCache.prepareForReuse(normalizedPath)
+    if (reusedModel != null) {
+      synchronized(this) {
+        model = reusedModel
+        currentModelPath = normalizedPath
+      }
+      promise.resolve(null)
+      return
+    }
+
+    VoskModelCache.loadFresh(
+        ctx,
+        normalizedPath,
+        onSuccess = { loadedModel ->
+          synchronized(this) {
+            model = loadedModel
+            currentModelPath = normalizedPath
+          }
+          promise.resolve(null)
+        },
+        onError = { error ->
+          var wasRestored = false
+          if (previousPath != null) {
+            VoskModelCache.prepareForReuse(previousPath)?.let { restored ->
+              synchronized(this) {
+                model = restored
+                currentModelPath = previousPath
+              }
+              wasRestored = true
+            }
+          }
+          if (!wasRestored) {
+            synchronized(this) {
+              model = null
+              currentModelPath = null
+            }
+          }
+          promise.reject(error)
+        })
   }
 
   override fun start(options: ReadableMap?, promise: Promise) {
@@ -189,17 +272,24 @@ class VoskModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  private fun cleanModel() {
+  private fun releaseCurrentModel(clearCache: Boolean) {
     synchronized(this) {
-      try {
-        model?.let {
-          it.close()
-          model = null
+      if (clearCache) {
+        VoskModelCache.clear()
+      } else {
+        try {
+          VoskModelCache.releaseActive(keepCached = true)
+        } catch (e: Exception) {
+          Log.w(NAME, "Error releasing model", e)
         }
-      } catch (e: Exception) {
-        Log.w(NAME, "Error during model cleanup", e)
       }
+      model = null
+      currentModelPath = null
     }
+  }
+
+  private fun cleanModel() {
+    releaseCurrentModel(false)
   }
 
   override fun stop() {
@@ -217,6 +307,12 @@ class VoskModule(reactContext: ReactApplicationContext) :
 
   override fun removeListeners(count: Double): Unit {
     // Keep: Required for RN built in Event Emitter Calls.
+  }
+
+  override fun invalidate() {
+    cleanRecognizer()
+    releaseCurrentModel(true)
+    super.invalidate()
   }
 
   companion object {
