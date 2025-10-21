@@ -1,5 +1,28 @@
-import { PermissionsAndroid, Platform } from 'react-native';
+import {
+  NativeEventEmitter,
+  NativeModules,
+  PermissionsAndroid,
+  Platform,
+  type EmitterSubscription,
+} from 'react-native';
 import Vosk, { type VoskOptions } from './NativeVosk';
+
+type NativeEventModule = {
+  addListener: (eventType: string) => void;
+  removeListeners: (count: number) => void;
+};
+
+const legacyModule = (NativeModules as { Vosk?: NativeEventModule }).Vosk;
+const moduleForEvents: NativeEventModule | undefined =
+  legacyModule ?? (Vosk as unknown as NativeEventModule | undefined);
+const eventEmitter = new NativeEventEmitter(moduleForEvents);
+
+function subscribe<T extends (...args: any[]) => void>(
+  event: string,
+  listener: T
+): EmitterSubscription {
+  return eventEmitter.addListener(event, listener);
+}
 
 /**
  * Loads the model from specified path
@@ -80,7 +103,7 @@ export function stop() {
  * @returns A subscription to the event
  */
 export function onError(cb: (e: any) => void) {
-  return Vosk.onError(cb);
+  return subscribe('onError', cb);
 }
 
 /** Event listener for timeout event
@@ -89,7 +112,7 @@ export function onError(cb: (e: any) => void) {
  * @returns A subscription to the event
  */
 export function onTimeout(cb: () => void) {
-  return Vosk.onTimeout(cb);
+  return subscribe('onTimeout', cb);
 }
 
 /** Event listener for partial result event
@@ -98,7 +121,7 @@ export function onTimeout(cb: () => void) {
  * @returns A subscription to the event
  */
 export function onPartialResult(cb: (e: string) => void) {
-  return Vosk.onPartialResult(cb);
+  return subscribe('onPartialResult', cb);
 }
 
 /** Event listener for final result event
@@ -107,7 +130,7 @@ export function onPartialResult(cb: (e: string) => void) {
  * @returns A subscription to the event
  */
 export function onFinalResult(cb: (e: string) => void) {
-  return Vosk.onFinalResult(cb);
+  return subscribe('onFinalResult', cb);
 }
 
 /** Event listener for result event
@@ -116,5 +139,5 @@ export function onFinalResult(cb: (e: string) => void) {
  * @returns A subscription to the event
  */
 export function onResult(cb: (e: string) => void) {
-  return Vosk.onResult(cb);
+  return subscribe('onResult', cb);
 }
