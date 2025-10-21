@@ -6,7 +6,6 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.module.annotations.ReactModule
-import com.facebook.react.modules.core.DeviceEventManagerModule
 import java.io.IOException
 import org.json.JSONObject
 import org.vosk.Model
@@ -37,7 +36,7 @@ class VoskModule(reactContext: ReactApplicationContext) :
 
     // Send event if data found
     if (!text.isNullOrEmpty()) {
-      sendEvent("onResult", text)
+      emitOnResult(text)
     }
   }
 
@@ -47,7 +46,7 @@ class VoskModule(reactContext: ReactApplicationContext) :
 
     // Send event if data found
     if (!text.isNullOrEmpty()) {
-      sendEvent("onFinalResult", text)
+      emitOnFinalResult(text)
     }
   }
 
@@ -57,17 +56,17 @@ class VoskModule(reactContext: ReactApplicationContext) :
 
     // Send event if data found
     if (!text.isNullOrEmpty()) {
-      sendEvent("onPartialResult", text)
+      emitOnPartialResult(text)
     }
   }
 
   override fun onError(e: Exception) {
-    sendEvent("onError", e.toString())
+    emitOnError(e.toString())
   }
 
   override fun onTimeout() {
     cleanRecognizer()
-    sendEvent("onTimeout")
+    emitOnTimeout()
   }
 
   /**
@@ -82,13 +81,6 @@ class VoskModule(reactContext: ReactApplicationContext) :
     } catch (tx: Throwable) {
       return null
     }
-  }
-
-  /** Sends event to react native with associated data */
-  private fun sendEvent(eventName: String, data: String? = null) {
-    // Send event
-    context?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            ?.emit(eventName, data)
   }
 
   /**

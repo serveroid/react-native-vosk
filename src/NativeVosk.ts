@@ -1,5 +1,7 @@
-import type { TurboModule } from 'react-native';
+import type { TurboModule, CodegenTypes } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
+
+type EventEmitter<T> = CodegenTypes.EventEmitter<T>;
 
 export type VoskEventName =
   | 'onResult'
@@ -29,6 +31,12 @@ export interface Spec extends TurboModule {
 
   addListener: (eventType: VoskEventName) => void;
   removeListeners: (count: number) => void;
+
+  readonly onResult: EventEmitter<string>;
+  readonly onPartialResult: EventEmitter<string>;
+  readonly onFinalResult: EventEmitter<string>;
+  readonly onError: EventEmitter<string>;
+  readonly onTimeout: EventEmitter<void>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('Vosk');

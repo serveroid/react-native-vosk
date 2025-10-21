@@ -3,21 +3,10 @@
 #import "Vosk-API.h"
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>
-#import <React/RCTEventEmitter.h>
 #include <vector> // added for float32 -> int16 conversion
 
 // Specific key to detect execution on the processing queue
 static void *kVoskProcessingQueueKey = &kVoskProcessingQueueKey;
-
-@interface Vosk ()
-- (void)sendEventWithName:(NSString *)eventName body:(id)body;
-- (void)emitEventWithName:(NSString *)eventName body:(id)body;
-- (void)emitOnError:(NSString *)message;
-- (void)emitOnTimeout;
-- (void)emitOnResult:(NSString *)text;
-- (void)emitOnPartialResult:(NSString *)text;
-- (void)emitOnFinalResult:(NSString *)text;
-@end
 
 @implementation Vosk {
   // État interne migré depuis Swift
@@ -67,46 +56,11 @@ RCT_EXPORT_MODULE()
   }
 }
 
+ 
 - (NSArray<NSString *> *)supportedEvents {
   return @[
     @"onError", @"onResult", @"onFinalResult", @"onPartialResult", @"onTimeout"
   ];
-}
-
-- (void)emitEventWithName:(NSString *)eventName body:(id)body {
-  if (eventName.length == 0) {
-    return;
-  }
-  [self sendEventWithName:eventName body:body];
-}
-
-- (void)emitOnError:(NSString *)message {
-  [self emitEventWithName:@"onError" body:message ?: @""];
-}
-
-- (void)emitOnTimeout {
-  [self emitEventWithName:@"onTimeout" body:nil];
-}
-
-- (void)emitOnResult:(NSString *)text {
-  if (text.length == 0) {
-    return;
-  }
-  [self emitEventWithName:@"onResult" body:text];
-}
-
-- (void)emitOnPartialResult:(NSString *)text {
-  if (text.length == 0) {
-    return;
-  }
-  [self emitEventWithName:@"onPartialResult" body:text];
-}
-
-- (void)emitOnFinalResult:(NSString *)text {
-  if (text.length == 0) {
-    return;
-  }
-  [self emitEventWithName:@"onFinalResult" body:text];
 }
 
 - (void)loadModel:(nonnull NSString *)path
