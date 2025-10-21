@@ -10,7 +10,7 @@ type VoskNativeEventMap = {
   onResult: [string];
   onPartialResult: [string];
   onFinalResult: [string];
-  onError: [any];
+  onError: [string];
   onTimeout: [];
 };
 

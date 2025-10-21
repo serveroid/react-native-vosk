@@ -3,12 +3,14 @@
 #import "Vosk-API.h"
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>
+#import <React/RCTEventEmitter.h>
 #include <vector> // added for float32 -> int16 conversion
 
 // Specific key to detect execution on the processing queue
 static void *kVoskProcessingQueueKey = &kVoskProcessingQueueKey;
 
 @interface Vosk ()
+- (void)sendEventWithName:(NSString *)eventName body:(id)body;
 - (void)emitEventWithName:(NSString *)eventName body:(id)body;
 - (void)emitOnError:(NSString *)message;
 - (void)emitOnTimeout;
@@ -75,7 +77,7 @@ RCT_EXPORT_MODULE()
   if (eventName.length == 0) {
     return;
   }
-  [self sendEventWithName:eventName body:body ?: [NSNull null]];
+  [self sendEventWithName:eventName body:body];
 }
 
 - (void)emitOnError:(NSString *)message {
@@ -83,7 +85,7 @@ RCT_EXPORT_MODULE()
 }
 
 - (void)emitOnTimeout {
-  [self emitEventWithName:@"onTimeout" body:[NSNull null]];
+  [self emitEventWithName:@"onTimeout" body:nil];
 }
 
 - (void)emitOnResult:(NSString *)text {
