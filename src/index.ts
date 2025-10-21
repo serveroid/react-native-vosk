@@ -1,5 +1,27 @@
-import { PermissionsAndroid, Platform } from 'react-native';
-import Vosk, { type VoskOptions } from './NativeVosk';
+import {
+  NativeEventEmitter,
+  PermissionsAndroid,
+  Platform,
+  type EmitterSubscription,
+} from 'react-native';
+import Vosk, { type VoskEventName, type VoskOptions } from './NativeVosk';
+
+type VoskNativeEventMap = {
+  onResult: [string];
+  onPartialResult: [string];
+  onFinalResult: [string];
+  onError: [any];
+  onTimeout: [];
+};
+
+const eventEmitter = new NativeEventEmitter<VoskNativeEventMap>(Vosk);
+
+function addVoskListener<EventName extends VoskEventName>(
+  eventName: EventName,
+  listener: (...args: VoskNativeEventMap[EventName]) => void
+): EmitterSubscription {
+  return eventEmitter.addListener(eventName, listener);
+}
 
 /**
  * Loads the model from specified path
@@ -80,7 +102,7 @@ export function stop() {
  * @returns A subscription to the event
  */
 export function onError(cb: (e: any) => void) {
-  return Vosk.onError(cb);
+  return addVoskListener('onError', cb);
 }
 
 /** Event listener for timeout event
@@ -89,7 +111,7 @@ export function onError(cb: (e: any) => void) {
  * @returns A subscription to the event
  */
 export function onTimeout(cb: () => void) {
-  return Vosk.onTimeout(cb);
+  return addVoskListener('onTimeout', cb);
 }
 
 /** Event listener for partial result event
@@ -98,7 +120,7 @@ export function onTimeout(cb: () => void) {
  * @returns A subscription to the event
  */
 export function onPartialResult(cb: (e: string) => void) {
-  return Vosk.onPartialResult(cb);
+  return addVoskListener('onPartialResult', cb);
 }
 
 /** Event listener for final result event
@@ -107,7 +129,7 @@ export function onPartialResult(cb: (e: string) => void) {
  * @returns A subscription to the event
  */
 export function onFinalResult(cb: (e: string) => void) {
-  return Vosk.onFinalResult(cb);
+  return addVoskListener('onFinalResult', cb);
 }
 
 /** Event listener for result event
@@ -116,5 +138,5 @@ export function onFinalResult(cb: (e: string) => void) {
  * @returns A subscription to the event
  */
 export function onResult(cb: (e: string) => void) {
-  return Vosk.onResult(cb);
+  return addVoskListener('onResult', cb);
 }
