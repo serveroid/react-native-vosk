@@ -1,5 +1,7 @@
 import { PermissionsAndroid, Platform } from 'react-native';
-import Vosk, { type VoskOptions } from './NativeVosk';
+import NativeVosk, { type VoskOptions } from './NativeVosk';
+
+export type { VoskOptions } from './NativeVosk';
 
 /**
  * Loads the model from specified path. The native layer keeps the most recent
@@ -13,7 +15,7 @@ import Vosk, { type VoskOptions } from './NativeVosk';
  *   });
  */
 export function loadModel(path: string) {
-  return Vosk.loadModel(path);
+  return NativeVosk.loadModel(path);
 }
 
 /**
@@ -26,7 +28,7 @@ export function loadModel(path: string) {
  * @returns A promise that resolves when the model is unloaded
  */
 export function unload() {
-  return Vosk.unload();
+  return NativeVosk.unload();
 }
 
 /**
@@ -58,7 +60,7 @@ async function requestRecordPermission() {
  */
 export function start(options?: VoskOptions) {
   return requestRecordPermission().then((granted) => {
-    if (granted) return Vosk.start(options);
+    if (granted) return NativeVosk.start(options);
     return Promise.reject('Record permission not granted');
   });
 }
@@ -71,7 +73,7 @@ export function start(options?: VoskOptions) {
  * @returns void
  */
 export function stop() {
-  return Vosk.stop();
+  return NativeVosk.stop();
 }
 
 /**
@@ -81,7 +83,7 @@ export function stop() {
  * @returns A subscription to the event
  */
 export function onError(cb: (e: any) => void) {
-  return Vosk.onError(cb);
+  return NativeVosk.onError(cb);
 }
 
 /** Event listener for timeout event
@@ -90,7 +92,7 @@ export function onError(cb: (e: any) => void) {
  * @returns A subscription to the event
  */
 export function onTimeout(cb: () => void) {
-  return Vosk.onTimeout(cb);
+  return NativeVosk.onTimeout(cb);
 }
 
 /** Event listener for partial result event
@@ -99,7 +101,7 @@ export function onTimeout(cb: () => void) {
  * @returns A subscription to the event
  */
 export function onPartialResult(cb: (e: string) => void) {
-  return Vosk.onPartialResult(cb);
+  return NativeVosk.onPartialResult(cb);
 }
 
 /** Event listener for final result event
@@ -108,7 +110,7 @@ export function onPartialResult(cb: (e: string) => void) {
  * @returns A subscription to the event
  */
 export function onFinalResult(cb: (e: string) => void) {
-  return Vosk.onFinalResult(cb);
+  return NativeVosk.onFinalResult(cb);
 }
 
 /** Event listener for result event
@@ -117,5 +119,19 @@ export function onFinalResult(cb: (e: string) => void) {
  * @returns A subscription to the event
  */
 export function onResult(cb: (e: string) => void) {
-  return Vosk.onResult(cb);
+  return NativeVosk.onResult(cb);
 }
+
+const Vosk = {
+  loadModel,
+  unload,
+  start,
+  stop,
+  onError,
+  onTimeout,
+  onPartialResult,
+  onFinalResult,
+  onResult,
+};
+
+export default Vosk;
