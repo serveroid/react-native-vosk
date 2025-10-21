@@ -1,5 +1,6 @@
 #import "Vosk.h"
 #import "RNVoskModel.h"
+#import "RNVoskModelCache.h"
 #import "Vosk-API.h"
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>
@@ -7,6 +8,13 @@
 
 // Specific key to detect execution on the processing queue
 static void *kVoskProcessingQueueKey = &kVoskProcessingQueueKey;
+
+static NSString *NormalizeModelPath(NSString *path) {
+  if ([path hasPrefix:@"file://"]) {
+    return [path substringFromIndex:7];
+  }
+  return path;
+}
 
 @implementation Vosk {
   // État interne migré depuis Swift
@@ -24,6 +32,7 @@ static void *kVoskProcessingQueueKey = &kVoskProcessingQueueKey;
   BOOL _tapInstalled; // track tap installation
   BOOL _pendingTap; // indicates we are retrying tap installation
   int _tapRetryCount; // retry counter
+  NSString *_Nullable _currentModelPath;
 }
 RCT_EXPORT_MODULE()
 
@@ -38,6 +47,7 @@ RCT_EXPORT_MODULE()
     _formatInput = [_inputNode inputFormatForBus:0];
     _recognizer = NULL;
     _currentModel = nil;
+    _currentModelPath = nil;
     _lastPartial = nil;
     _timeoutSource = nil;
     _isRunning = NO;
@@ -50,6 +60,7 @@ RCT_EXPORT_MODULE()
 }
 
 - (void)dealloc {
+  [[RNVoskModelCache sharedCache] clear];
   if (_recognizer) {
     vosk_recognizer_free(_recognizer);
     _recognizer = NULL;
@@ -65,14 +76,36 @@ RCT_EXPORT_MODULE()
 - (void)loadModel:(nonnull NSString *)path
           resolve:(nonnull RCTPromiseResolveBlock)resolve
            reject:(nonnull RCTPromiseRejectBlock)reject {
-  // Unload the current model if any
-  _currentModel = nil;
+  NSString *normalized = NormalizeModelPath(path);
+  if (_currentModelPath && [_currentModelPath isEqualToString:normalized] &&
+      _currentModel != nil) {
+    resolve(nil);
+    return;
+  }
+
+  NSString *previousPath = _currentModelPath;
+  RNVoskModel *previousModel = _currentModel;
   NSError *err = nil;
-  RNVoskModel *model = [[RNVoskModel alloc] initWithName:path error:&err];
+  RNVoskModel *model =
+      [[RNVoskModelCache sharedCache] acquireModelAtPath:normalized error:&err];
   if (model && !err) {
     _currentModel = model;
+    _currentModelPath = normalized;
     resolve(nil);
   } else {
+    if (previousPath && previousModel) {
+      NSError *restoreError = nil;
+      RNVoskModel *restored =
+          [[RNVoskModelCache sharedCache] acquireModelAtPath:previousPath
+                                                      error:&restoreError];
+      if (restored) {
+        _currentModel = restored;
+        _currentModelPath = previousPath;
+      } else {
+        _currentModel = previousModel;
+        _currentModelPath = previousPath;
+      }
+    }
     reject(@"loadModel", err.localizedDescription ?: @"Failed to load model",
            err);
   }
@@ -287,7 +320,9 @@ RCT_EXPORT_MODULE()
   if (_isRunning) {
     [self stopInternalWithoutEvents:NO];
   }
+  [[RNVoskModelCache sharedCache] releaseActiveKeepingCache:YES];
   _currentModel = nil;
+  _currentModelPath = nil;
 }
 
 - (void)addListener:(nonnull NSString *)eventType {

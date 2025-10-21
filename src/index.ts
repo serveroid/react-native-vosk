@@ -2,7 +2,8 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import Vosk, { type VoskOptions } from './NativeVosk';
 
 /**
- * Loads the model from specified path
+ * Loads the model from specified path. The native layer keeps the most recent
+ * model in-memory so switching back to it is instantaneous.
  *
  * @param path - Path of the model.
  * @returns A promise that resolves when the model is loaded
