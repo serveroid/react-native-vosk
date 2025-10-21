@@ -6,7 +6,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.module.annotations.ReactModule
-import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.vosk.NativeVoskSpec
 import java.io.IOException
 import org.json.JSONObject
 import org.vosk.Model
@@ -14,15 +14,14 @@ import org.vosk.Recognizer
 import org.vosk.android.RecognitionListener
 import org.vosk.android.SpeechService
 import org.vosk.android.StorageService
-import com.vosk.NativeVoskSpec
 
 @ReactModule(name = VoskModule.NAME)
 class VoskModule(reactContext: ReactApplicationContext) :
-        NativeVoskSpec(reactContext), RecognitionListener {
+    NativeVoskSpec(reactContext),
+    RecognitionListener {
 
   private var model: Model? = null
   private var speechService: SpeechService? = null
-  private var context: ReactApplicationContext? = reactContext
   private var recognizer: Recognizer? = null
   private var sampleRate = 16000.0f
   private var isStopping = false
@@ -84,13 +83,6 @@ class VoskModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  /** Sends event to react native with associated data */
-  private fun sendEvent(eventName: String, data: String? = null) {
-    // Send event
-    context?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            ?.emit(eventName, data)
-  }
-
   /**
    * Translates array of string(s) to required kaldi string format
    * @return the array of string(s) as a single string
@@ -110,18 +102,18 @@ class VoskModule(reactContext: ReactApplicationContext) :
     cleanModel()
     try {
       this.model = Model(path)
-      promise.resolve("Model successfully loaded")
+      promise.resolve(null)
     } catch (e: IOException) {
       println("Model directory does not exist at path: " + path)
 
       // Load model from main app bundle
       StorageService.unpack(
-              context,
+              reactApplicationContext,
               path,
               "models",
               { model: Model? ->
                 this.model = model
-                promise.resolve("Model successfully loaded")
+                promise.resolve(null)
               }
       ) { e: IOException ->
         this.model = null
@@ -154,7 +146,7 @@ class VoskModule(reactContext: ReactApplicationContext) :
                 speechService!!.startListening(this)
               }
       if (started) {
-        promise.resolve("Recognizer successfully started")
+        promise.resolve(null)
       } else {
         cleanRecognizer()
         promise.reject(IOException("Recognizer couldn't be started"))
@@ -163,6 +155,11 @@ class VoskModule(reactContext: ReactApplicationContext) :
       cleanRecognizer()
       promise.reject(e)
     }
+  }
+
+  override fun invalidate() {
+    super.invalidate()
+    unload()
   }
 
   private fun cleanRecognizer() {
