@@ -172,32 +172,35 @@ RCT_EXPORT_MODULE()
     return;
   }
 
-  // Request permission BEFORE doing heavy work
-  [audioSession requestRecordPermission:^(BOOL granted) {
-    if (!granted) {
-      dispatch_async(dispatch_get_main_queue(), ^{
-        NSString *msg = @"Microphone permission denied";
-        [self emitOnError:msg];
-        reject(@"start", msg, nil);
-      });
+  __weak __typeof(self) weakSelfPermission = self;
+  void (^beginRecognizerFlow)(void) = ^{
+    __strong __typeof(self) strongSelf = weakSelfPermission;
+    if (!strongSelf) {
       return;
     }
     dispatch_async(dispatch_get_main_queue(), ^{ // proceed on main
+      if (!strongSelf->_isRunning && !strongSelf->_isStarting) {
+        return;
+      }
       NSError *actErr = nil;
       if (![audioSession setActive:YES error:&actErr]) {
         NSString *msg = [NSString stringWithFormat:@"Failed to activate audio session: %@", actErr.localizedDescription];
-        [self emitOnError:msg];
+        [strongSelf emitOnError:msg];
+        strongSelf->_isStarting = NO;
         reject(@"start", msg, actErr);
         return;
       }
 
-  self->_formatInput = [self->_inputNode inputFormatForBus:0];
-  const double sampleRate = (self->_formatInput.sampleRate > 0) ? self->_formatInput.sampleRate : 16000.0;
-  const AVAudioFrameCount bufferSize = (AVAudioFrameCount)(sampleRate / 10.0);
-  self->_isRunning = YES;
+      strongSelf->_formatInput = [strongSelf->_inputNode inputFormatForBus:0];
+      const double sampleRate = (strongSelf->_formatInput.sampleRate > 0)
+                                    ? strongSelf->_formatInput.sampleRate
+                                    : 16000.0;
+      const AVAudioFrameCount bufferSize =
+          (AVAudioFrameCount)(sampleRate / 10.0);
+      strongSelf->_isRunning = YES;
 
-      __weak __typeof(self) weakSelf = self;
-      dispatch_async(self->_processingQueue, ^{ // recognizer init off main
+      __weak __typeof(strongSelf) weakSelf = strongSelf;
+      dispatch_async(strongSelf->_processingQueue, ^{ // recognizer init off main
         __strong __typeof(self) self = weakSelf;
         if (!self || !self->_isRunning) return;
         CFAbsoluteTime tRec0 = CFAbsoluteTimeGetCurrent();
@@ -258,7 +261,43 @@ RCT_EXPORT_MODULE()
         });
       });
     });
-  }];
+  };
+
+  // Request permission BEFORE doing heavy work but short-circuit when possible
+  AVAudioSessionRecordPermission permission =
+      [audioSession respondsToSelector:@selector(recordPermission)]
+          ? audioSession.recordPermission
+          : AVAudioSessionRecordPermissionUndetermined;
+
+  switch (permission) {
+  case AVAudioSessionRecordPermissionGranted: {
+    beginRecognizerFlow();
+    break;
+  }
+  case AVAudioSessionRecordPermissionDenied: {
+    NSString *msg = @"Microphone permission denied";
+    [self emitOnError:msg];
+    _isStarting = NO;
+    reject(@"start", msg, nil);
+    break;
+  }
+  case AVAudioSessionRecordPermissionUndetermined:
+  default: {
+    [audioSession requestRecordPermission:^(BOOL granted) {
+      if (!granted) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+          NSString *msg = @"Microphone permission denied";
+          [self emitOnError:msg];
+          self->_isStarting = NO;
+          reject(@"start", msg, nil);
+        });
+        return;
+      }
+      beginRecognizerFlow();
+    }];
+    break;
+  }
+  }
 }
 
 // Retry-based tap installer; called on main queue only
