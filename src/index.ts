@@ -1,27 +1,5 @@
-import {
-  NativeEventEmitter,
-  PermissionsAndroid,
-  Platform,
-  type EmitterSubscription,
-} from 'react-native';
-import Vosk, { type VoskEventName, type VoskOptions } from './NativeVosk';
-
-type VoskNativeEventMap = {
-  onResult: [string];
-  onPartialResult: [string];
-  onFinalResult: [string];
-  onError: [string];
-  onTimeout: [];
-};
-
-const eventEmitter = new NativeEventEmitter<VoskNativeEventMap>(Vosk);
-
-function addVoskListener<EventName extends VoskEventName>(
-  eventName: EventName,
-  listener: (...args: VoskNativeEventMap[EventName]) => void
-): EmitterSubscription {
-  return eventEmitter.addListener(eventName, listener);
-}
+import { PermissionsAndroid, Platform } from 'react-native';
+import Vosk, { type VoskOptions } from './NativeVosk';
 
 /**
  * Loads the model from specified path
@@ -101,8 +79,8 @@ export function stop() {
  * @param cb - Callback to be called on error event
  * @returns A subscription to the event
  */
-export function onError(cb: (e: any) => void) {
-  return addVoskListener('onError', cb);
+export function onError(cb: (e: string) => void) {
+  return Vosk.onError(cb);
 }
 
 /** Event listener for timeout event
@@ -111,7 +89,7 @@ export function onError(cb: (e: any) => void) {
  * @returns A subscription to the event
  */
 export function onTimeout(cb: () => void) {
-  return addVoskListener('onTimeout', cb);
+  return Vosk.onTimeout(cb);
 }
 
 /** Event listener for partial result event
@@ -120,7 +98,7 @@ export function onTimeout(cb: () => void) {
  * @returns A subscription to the event
  */
 export function onPartialResult(cb: (e: string) => void) {
-  return addVoskListener('onPartialResult', cb);
+  return Vosk.onPartialResult(cb);
 }
 
 /** Event listener for final result event
@@ -129,7 +107,7 @@ export function onPartialResult(cb: (e: string) => void) {
  * @returns A subscription to the event
  */
 export function onFinalResult(cb: (e: string) => void) {
-  return addVoskListener('onFinalResult', cb);
+  return Vosk.onFinalResult(cb);
 }
 
 /** Event listener for result event
@@ -138,5 +116,5 @@ export function onFinalResult(cb: (e: string) => void) {
  * @returns A subscription to the event
  */
 export function onResult(cb: (e: string) => void) {
-  return addVoskListener('onResult', cb);
+  return Vosk.onResult(cb);
 }
