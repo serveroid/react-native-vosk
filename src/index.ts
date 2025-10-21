@@ -14,8 +14,12 @@ export type { VoskOptions } from './NativeVosk';
  *      setLoaded(true);
  *   });
  */
-export function loadModel(path: string) {
+function loadModelImpl(path: string) {
   return NativeVosk.loadModel(path);
+}
+
+export function loadModel(path: string) {
+  return loadModelImpl(path);
 }
 
 /**
@@ -27,8 +31,12 @@ export function loadModel(path: string) {
  *   });
  * @returns A promise that resolves when the model is unloaded
  */
-export function unload() {
+function unloadImpl() {
   return NativeVosk.unload();
+}
+
+export function unload() {
+  return unloadImpl();
 }
 
 /**
@@ -58,11 +66,15 @@ async function requestRecordPermission() {
  *      timeout: 5000,
  *   }).catch(e => console.log(e));
  */
-export function start(options?: VoskOptions) {
+function startImpl(options?: VoskOptions) {
   return requestRecordPermission().then((granted) => {
     if (granted) return NativeVosk.start(options);
     return Promise.reject('Record permission not granted');
   });
+}
+
+export function start(options?: VoskOptions) {
+  return startImpl(options);
 }
 
 /**
@@ -72,8 +84,12 @@ export function start(options?: VoskOptions) {
  *   stop();
  * @returns void
  */
-export function stop() {
+function stopImpl() {
   return NativeVosk.stop();
+}
+
+export function stop() {
+  return stopImpl();
 }
 
 /**
@@ -82,8 +98,12 @@ export function stop() {
  * @param cb - Callback to be called on error event
  * @returns A subscription to the event
  */
-export function onError(cb: (e: any) => void) {
+function onErrorImpl(cb: (e: any) => void) {
   return NativeVosk.onError(cb);
+}
+
+export function onError(cb: (e: any) => void) {
+  return onErrorImpl(cb);
 }
 
 /** Event listener for timeout event
@@ -91,8 +111,12 @@ export function onError(cb: (e: any) => void) {
  * @param cb - Callback to be called on timeout event
  * @returns A subscription to the event
  */
-export function onTimeout(cb: () => void) {
+function onTimeoutImpl(cb: () => void) {
   return NativeVosk.onTimeout(cb);
+}
+
+export function onTimeout(cb: () => void) {
+  return onTimeoutImpl(cb);
 }
 
 /** Event listener for partial result event
@@ -100,8 +124,12 @@ export function onTimeout(cb: () => void) {
  * @param cb - Callback to be called on partial result event
  * @returns A subscription to the event
  */
-export function onPartialResult(cb: (e: string) => void) {
+function onPartialResultImpl(cb: (e: string) => void) {
   return NativeVosk.onPartialResult(cb);
+}
+
+export function onPartialResult(cb: (e: string) => void) {
+  return onPartialResultImpl(cb);
 }
 
 /** Event listener for final result event
@@ -109,8 +137,12 @@ export function onPartialResult(cb: (e: string) => void) {
  * @param cb - Callback to be called on final result event
  * @returns A subscription to the event
  */
-export function onFinalResult(cb: (e: string) => void) {
+function onFinalResultImpl(cb: (e: string) => void) {
   return NativeVosk.onFinalResult(cb);
+}
+
+export function onFinalResult(cb: (e: string) => void) {
+  return onFinalResultImpl(cb);
 }
 
 /** Event listener for result event
@@ -118,20 +150,86 @@ export function onFinalResult(cb: (e: string) => void) {
  * @param cb - Callback to be called on result event
  * @returns A subscription to the event
  */
-export function onResult(cb: (e: string) => void) {
+function onResultImpl(cb: (e: string) => void) {
   return NativeVosk.onResult(cb);
 }
 
-const Vosk = {
-  loadModel,
-  unload,
-  start,
-  stop,
-  onError,
-  onTimeout,
-  onPartialResult,
-  onFinalResult,
-  onResult,
-};
+export function onResult(cb: (e: string) => void) {
+  return onResultImpl(cb);
+}
+
+class Vosk {
+  loadModel(path: string) {
+    return loadModelImpl(path);
+  }
+
+  unload() {
+    return unloadImpl();
+  }
+
+  start(options?: VoskOptions) {
+    return startImpl(options);
+  }
+
+  stop() {
+    return stopImpl();
+  }
+
+  onError(cb: (e: any) => void) {
+    return onErrorImpl(cb);
+  }
+
+  onTimeout(cb: () => void) {
+    return onTimeoutImpl(cb);
+  }
+
+  onPartialResult(cb: (e: string) => void) {
+    return onPartialResultImpl(cb);
+  }
+
+  onFinalResult(cb: (e: string) => void) {
+    return onFinalResultImpl(cb);
+  }
+
+  onResult(cb: (e: string) => void) {
+    return onResultImpl(cb);
+  }
+
+  static loadModel(path: string) {
+    return loadModelImpl(path);
+  }
+
+  static unload() {
+    return unloadImpl();
+  }
+
+  static start(options?: VoskOptions) {
+    return startImpl(options);
+  }
+
+  static stop() {
+    return stopImpl();
+  }
+
+  static onError(cb: (e: any) => void) {
+    return onErrorImpl(cb);
+  }
+
+  static onTimeout(cb: () => void) {
+    return onTimeoutImpl(cb);
+  }
+
+  static onPartialResult(cb: (e: string) => void) {
+    return onPartialResultImpl(cb);
+  }
+
+  static onFinalResult(cb: (e: string) => void) {
+    return onFinalResultImpl(cb);
+  }
+
+  static onResult(cb: (e: string) => void) {
+    return onResultImpl(cb);
+  }
+}
 
 export default Vosk;
