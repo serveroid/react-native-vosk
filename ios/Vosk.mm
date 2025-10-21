@@ -8,6 +8,15 @@
 // Specific key to detect execution on the processing queue
 static void *kVoskProcessingQueueKey = &kVoskProcessingQueueKey;
 
+@interface Vosk ()
+- (void)emitEventWithName:(NSString *)eventName body:(id)body;
+- (void)emitOnError:(NSString *)message;
+- (void)emitOnTimeout;
+- (void)emitOnResult:(NSString *)text;
+- (void)emitOnPartialResult:(NSString *)text;
+- (void)emitOnFinalResult:(NSString *)text;
+@end
+
 @implementation Vosk {
   // État interne migré depuis Swift
   RNVoskModel *_Nullable _currentModel;
@@ -60,6 +69,42 @@ RCT_EXPORT_MODULE()
   return @[
     @"onError", @"onResult", @"onFinalResult", @"onPartialResult", @"onTimeout"
   ];
+}
+
+- (void)emitEventWithName:(NSString *)eventName body:(id)body {
+  if (eventName.length == 0) {
+    return;
+  }
+  [self sendEventWithName:eventName body:body ?: [NSNull null]];
+}
+
+- (void)emitOnError:(NSString *)message {
+  [self emitEventWithName:@"onError" body:message ?: @""];
+}
+
+- (void)emitOnTimeout {
+  [self emitEventWithName:@"onTimeout" body:[NSNull null]];
+}
+
+- (void)emitOnResult:(NSString *)text {
+  if (text.length == 0) {
+    return;
+  }
+  [self emitEventWithName:@"onResult" body:text];
+}
+
+- (void)emitOnPartialResult:(NSString *)text {
+  if (text.length == 0) {
+    return;
+  }
+  [self emitEventWithName:@"onPartialResult" body:text];
+}
+
+- (void)emitOnFinalResult:(NSString *)text {
+  if (text.length == 0) {
+    return;
+  }
+  [self emitEventWithName:@"onFinalResult" body:text];
 }
 
 - (void)loadModel:(nonnull NSString *)path

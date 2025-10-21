@@ -37,7 +37,7 @@ class VoskModule(reactContext: ReactApplicationContext) :
 
     // Send event if data found
     if (!text.isNullOrEmpty()) {
-      emitOnResult(text)
+      sendEvent("onResult", text)
     }
   }
 
@@ -47,7 +47,7 @@ class VoskModule(reactContext: ReactApplicationContext) :
 
     // Send event if data found
     if (!text.isNullOrEmpty()) {
-      emitOnFinalResult(text)
+      sendEvent("onFinalResult", text)
     }
   }
 
@@ -57,17 +57,17 @@ class VoskModule(reactContext: ReactApplicationContext) :
 
     // Send event if data found
     if (!text.isNullOrEmpty()) {
-      emitOnPartialResult(text)
+      sendEvent("onPartialResult", text)
     }
   }
 
   override fun onError(e: Exception) {
-    emitOnError(e.toString())
+    sendEvent("onError", e.toString())
   }
 
   override fun onTimeout() {
     cleanRecognizer()
-    emitOnTimeout()
+    sendEvent("onTimeout")
   }
 
   /**
