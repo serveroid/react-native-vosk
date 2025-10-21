@@ -6,7 +6,6 @@
 
 #import <AVFoundation/AVFoundation.h>
 #import <React/RCTEventEmitter.h>
-#import <React/RCTConvertHelpers.h>
 #import <React/RCTUtils.h>
 
 #include <algorithm>
